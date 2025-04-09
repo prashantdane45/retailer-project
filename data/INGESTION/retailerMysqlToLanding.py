@@ -1,5 +1,6 @@
-from google.cloud import storage, bigquery
-import pandas as pd
+#import all the modules
+from google.cloud import storage, bigquery #used to interact python with gcs and big query
+import pandas as pd 
 from pyspark.sql import SparkSession
 import datetime
 import json
@@ -8,26 +9,26 @@ import json
 spark = SparkSession.builder.appName("RetailerMySQLToLanding").getOrCreate()
 
 # Google Cloud Storage (GCS) Configuration variables
-GCS_BUCKET = "retailer-datalake-project-27032025"
+GCS_BUCKET = "retailer-datalake-project-01042025" # so as to get the data or ingest the data from cloud sql to gcs
 LANDING_PATH = f"gs://{GCS_BUCKET}/landing/retailer-db/"
-ARCHIVE_PATH = f"gs://{GCS_BUCKET}/landing/retailer-db/archive/"
-CONFIG_FILE_PATH = f"gs://{GCS_BUCKET}/configs/retailer_config.csv"
+ARCHIVE_PATH = f"gs://{GCS_BUCKET}/landing/retailer-db/archive/" #for the purpose of archieving(old files are archieved)
+CONFIG_FILE_PATH = f"gs://{GCS_BUCKET}/configs/retailer_config.csv" #configuration files
 
 # BigQuery Configuration
-BQ_PROJECT = "avd-databricks-demo"
-BQ_AUDIT_TABLE = f"{BQ_PROJECT}.temp_dataset.audit_log"
+BQ_PROJECT = "bold-sorter-450512-d9" 
+BQ_AUDIT_TABLE = f"{BQ_PROJECT}.temp_dataset.audit_log" # we have used big query to store the audit logs
 BQ_LOG_TABLE = f"{BQ_PROJECT}.temp_dataset.pipeline_logs"
 BQ_TEMP_PATH = f"{GCS_BUCKET}/temp/"  
 
-# MySQL Configuration
+# MySQL Configuration #to read data from mysql we need to setup mysql configuration
 MYSQL_CONFIG = {
-    "url": "jdbc:mysql://34.132.173.221:3306/retailerDB?useSSL=false&allowPublicKeyRetrieval=true",
+    "url": "jdbc:mysql://34.56.33.76:3306/retailerDB?useSSL=false&allowPublicKeyRetrieval=true",
     "driver": "com.mysql.cj.jdbc.Driver",
     "user": "myuser",
     "password": "mypass"
 }
 
-# Initialize GCS & BigQuery Clients
+# Initialize GCS & BigQuery Clients #as we are using bigquery and storage we need to initialize it
 storage_client = storage.Client()
 bq_client = bigquery.Client()
 
@@ -44,36 +45,10 @@ def log_event(event_type, message, table=None):
     }
     log_entries.append(log_entry)
     print(f"[{log_entry['timestamp']}] {event_type} - {message}")  # Print for visibility
-##---------------------------------------------------------------------------------------------------##
-def save_logs_to_gcs():
-    """Save logs to a JSON file and upload to GCS"""
-    log_filename = f"pipeline_log_{datetime.datetime.now().strftime('%Y%m%d%H%M%S')}.json"
-    log_filepath = f"temp/pipeline_logs/{log_filename}"  
-    
-    json_data = json.dumps(log_entries, indent=4)
-
-    # Get GCS bucket
-    bucket = storage_client.bucket(GCS_BUCKET)
-    blob = bucket.blob(log_filepath)
-    
-    # Upload JSON data as a file
-    blob.upload_from_string(json_data, content_type="application/json")
-
-    print(f"✅ Logs successfully saved to GCS at gs://{GCS_BUCKET}/{log_filepath}")
-    
-def save_logs_to_bigquery():
-    """Save logs to BigQuery"""
-    if log_entries:
-        log_df = spark.createDataFrame(log_entries)
-        log_df.write.format("bigquery") \
-            .option("table", BQ_LOG_TABLE) \
-            .option("temporaryGcsBucket", BQ_TEMP_PATH) \
-            .mode("append") \
-            .save()
-        print("✅ Logs stored in BigQuery for future analysis")
-
 
 ##---------------------------------------------------------------------------------------------------##
+
+# First step is read the config file
 # Function to Read Config File from GCS
 def read_config_file():
     df = spark.read.csv(CONFIG_FILE_PATH, header=True)
@@ -83,7 +58,7 @@ def read_config_file():
 # Function to Move Existing Files to Archive
 def move_existing_files_to_archive(table):
     blobs = list(storage_client.bucket(GCS_BUCKET).list_blobs(prefix=f"landing/retailer-db/{table}/"))
-    existing_files = [blob.name for blob in blobs if blob.name.endswith(".json")]
+    existing_files = [blob.name for blob in blobs if blob.name.endswith(".json")] #if files end with json then archieve it
     
     if not existing_files:
         log_event("INFO", f"No existing files for table {table}")
@@ -109,21 +84,23 @@ def move_existing_files_to_archive(table):
 ##---------------------------------------------------------------------------------------------------##
 
 # Function to Get Latest Watermark from BigQuery Audit Table
-def get_latest_watermark(table_name):
+def get_latest_watermark(table_name): #this part is used to get the incremental data load
     query = f"""
-        SELECT MAX(load_timestamp) AS latest_timestamp
+        SELECT MAX(load_timestamp) AS latest_timestamp 
         FROM `{BQ_AUDIT_TABLE}`
         WHERE tablename = '{table_name}'
     """
     query_job = bq_client.query(query)
     result = query_job.result()
     for row in result:
-        return row.latest_timestamp if row.latest_timestamp else "1900-01-01 00:00:00"
+        return row.latest_timestamp if row.latest_timestamp else "1900-01-01 00:00:00" #if that table is not available then get the old timestamp
     return "1900-01-01 00:00:00"
         
 ##---------------------------------------------------------------------------------------------------##
 
 # Function to Extract Data from MySQL and Save to GCS
+# We already now the logic i.e. if it is a incremental load table we need to get it from audit table get the timestamp and for full load 
+# dont do anything as mentioned in the first block of try block using watermark 
 def extract_and_save_to_landing(table, load_type, watermark_col):
     try:
         # Get Latest Watermark
@@ -145,11 +122,11 @@ def extract_and_save_to_landing(table, load_type, watermark_col):
                 .load())
         log_event("SUCCESS", f"✅ Successfully extracted data from {table}", table=table)
         
-        # Convert Spark DataFrame to JSON
+        # Convert Spark DataFrame to JSON #why pandas df because we need convert into json file it will create success file and log file
         pandas_df = df.toPandas()
         json_data = pandas_df.to_json(orient="records", lines=True)
         
-        # Generate File Path in GCS
+        # Generate File Path in GCS #after converting it into json set the gcs path
         today = datetime.datetime.today().strftime('%d%m%Y')
         JSON_FILE_PATH = f"landing/retailer-db/{table}/{table}_{today}.json"
         
@@ -174,18 +151,18 @@ def extract_and_save_to_landing(table, load_type, watermark_col):
     
     except Exception as e:
         log_event("ERROR", f"Error processing {table}: {str(e)}", table=table)
-        
+
 ##---------------------------------------------------------------------------------------------------##
 
 # Main Execution
 config_df = read_config_file()
 
+#Second step and according the function mentioned inside the for loop add it above
 for row in config_df.collect():
-    if row["is_active"] == '1':
+    if row["is_active"] == '1': #check for the active records only and take it in archive folder
         db, src, table, load_type, watermark, _, targetpath = row
-        move_existing_files_to_archive(table)
-        extract_and_save_to_landing(table, load_type, watermark)
-
+        move_existing_files_to_archive(table) #this function is used so we need to create logic for this function
+        extract_and_save_to_landing(table, load_type, watermark) #now extract from mysql and load into landing
 save_logs_to_gcs()
 save_logs_to_bigquery()       
         

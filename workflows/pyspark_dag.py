@@ -10,12 +10,12 @@ from airflow.providers.google.cloud.operators.dataproc import (
 )
 
 # define the variables
-PROJECT_ID = "avd-databricks-demo"
+PROJECT_ID = "GCP Practice Project"
 REGION = "us-east1"
 CLUSTER_NAME = "my-demo-cluster"
-COMPOSER_BUCKET = "us-central1-demo-instance-9e2e6451-bucket"
+COMPOSER_BUCKET = "us-central1-demo-instance-f07bde61-bucket"
 
-GCS_JOB_FILE_1 = f"gs://{COMPOSER_BUCKET}/data/INGESTION/retailerMysqlToLanding.py"
+GCS_JOB_FILE_1 = f"gs://{COMPOSER_BUCKET}/data/INGESTION/retailerMysqlToLanding.py" #DEFINING PATH USING BUCKET NAME AND IN bg_dag its done using local path
 PYSPARK_JOB_1 = {
     "reference": {"project_id": PROJECT_ID},
     "placement": {"cluster_name": CLUSTER_NAME},
@@ -38,7 +38,7 @@ PYSPARK_JOB_3 = {
 
 
 ARGS = {
-    "owner": "SHAIK SAIDHUL",
+    "owner": "PRASHANT DANE",
     "start_date": None,
     "depends_on_past": False,
     "email_on_failure": False,

@@ -5,9 +5,9 @@ from airflow.utils.dates import days_ago
 from airflow.providers.google.cloud.operators.bigquery import BigQueryInsertJobOperator
 
 # Define constants
-PROJECT_ID = "avd-databricks-demo"
+PROJECT_ID = "GCP Practice Project"
 LOCATION = "US"
-SQL_FILE_PATH_1 = "/home/airflow/gcs/data/BQ/bronzeTable.sql"
+SQL_FILE_PATH_1 = "/home/airflow/gcs/data/BQ/bronzeTable.sql" #DEFINING PATH USING bg_dag its done using local path
 SQL_FILE_PATH_2 = "/home/airflow/gcs/data/BQ/silverTable.sql"
 SQL_FILE_PATH_3 = "/home/airflow/gcs/data/BQ/goldTable.sql"
 
@@ -22,7 +22,7 @@ GOLD_QUERY = read_sql_file(SQL_FILE_PATH_3)
 
 # Define default arguments
 ARGS = {
-    "owner": "SHAIK SAIDHUL",
+    "owner": "PRASHANT DANE",
     "start_date": None,
     "depends_on_past": False,
     "email_on_failure": False,

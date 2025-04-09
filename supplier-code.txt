@@ -109,9 +109,8 @@ def move_existing_files_to_archive(table):
         source_blob.delete()
         
         log_event("INFO", f"✅ Moved {file} to {archive_path}", table=table)    
-
+        
 ##---------------------------------------------------------------------------------------------------##
-
 # Function to Get Latest Watermark from BigQuery Audit Table
 def get_latest_watermark(table_name): #this part is used to get the incremental data load
     query = f"""
@@ -180,9 +179,7 @@ def extract_and_save_to_landing(table, load_type, watermark_col):
     
     except Exception as e:
         log_event("ERROR", f"Error processing {table}: {str(e)}", table=table)
-
 ##---------------------------------------------------------------------------------------------------##
-
 # Main Execution
 config_df = read_config_file()
 
