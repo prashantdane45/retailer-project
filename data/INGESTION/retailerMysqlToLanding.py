@@ -152,6 +152,7 @@ def extract_and_save_to_landing(table, load_type, watermark_col):
     except Exception as e:
         log_event("ERROR", f"Error processing {table}: {str(e)}", table=table)
 
+
 ##---------------------------------------------------------------------------------------------------##
 
 # Main Execution
